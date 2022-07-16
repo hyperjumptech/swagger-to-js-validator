@@ -1,0 +1,62 @@
+openapi: 3.0.1
+info:
+  title: Symon API
+  version: 1.0.0
+  description: Symon API end points
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+externalDocs:
+  description: Find out more about Swagger
+  url: http://swagger.io
+servers:
+  - url: http://localhost:3000/api/v1
+  - url: http:/staging.symon.hyperjump.tech/api/v1
+tags:
+  - name: monika
+    description: Everything about monika
+    externalDocs:
+      description: Find out more
+      url: http://swagger.io
+paths:
+  /monika/server/batch:
+    put:
+      tags:
+        - monika
+      summary: Update multiple monika
+      operationId: batchUpdateMonika
+      requestBody:
+        description: Array of Monika to update
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Monika'
+        required: true
+      responses:
+        '400':
+          description: Invalid ID supplied
+          content: {}
+        '404':
+          description: Pet not found
+          content: {}
+        '405':
+          description: Validation exception
+          content: {}
+components:
+  schemas:
+    Monika:
+      type: object
+      properties:
+        action:
+          type: 'string'
+          description: 'Action'
+          enum: ['restart', 'stop', 'start', 'update']
+        monikaIDs:
+          type: 'array'
+          description: 'Monika IDs'
+          items:
+            type: 'string'
+            required: true
+      required:
+        - monikaIDs
+        - action

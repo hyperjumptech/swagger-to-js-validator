@@ -1,15 +1,15 @@
 {
-  "name": "swagger-to-joi",
+  "name": "sjtv",
   "version": "0.0.0",
-  "description": "oclif example Hello World CLI",
-  "author": "Nico Prananta @nicnocquee",
+  "description": "Create a request validator from an Open API 3 schema (formerly Swagger)",
+  "author": "@hyperjumptech",
   "bin": {
-    "stj": "./bin/run"
+    "stjv": "./bin/run"
   },
-  "homepage": "https://github.com/nicnocquee/hello-world",
+  "homepage": "https://github.com/hyperjumptech/swagger-to-js-validator",
   "license": "MIT",
   "main": "dist/index.js",
-  "repository": "nicnocquee/hello-world",
+  "repository": "hyperjumptech/swagger-to-js-validator",
   "files": [
     "/bin",
     "/dist",
@@ -24,7 +24,8 @@
     "@octokit/core": "^4.0.4",
     "handlebars": "^4.7.7",
     "js-yaml": "^4.1.0",
-    "yaml-js": "^0.3.1"
+    "yaml-js": "^0.3.1",
+    "prettier": "2.7.1"
   },
   "devDependencies": {
     "@oclif/test": "^2",
@@ -32,6 +33,7 @@
     "@types/js-yaml": "^4.0.5",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.9.4",
+    "@types/prettier": "^2.6.3",
     "chai": "^4",
     "eslint": "^7.32.0",
     "eslint-config-oclif": "^4",
@@ -39,16 +41,16 @@
     "eslint-config-prettier": "^8.5.0",
     "globby": "^11",
     "mocha": "^9",
+    "nodemon": "^2.0.19",
     "oclif": "^3",
-    "prettier": "2.7.1",
     "shx": "^0.3.3",
     "ts-node": "^10.2.1",
     "tslib": "^2.3.1",
     "typescript": "^4.4.3"
   },
   "oclif": {
-    "bin": "stj",
-    "dirname": "swagger-to-joi",
+    "bin": "stjv",
+    "dirname": "swagger-to-js-validator",
     "commands": "./dist/commands",
     "plugins": [
       "@oclif/plugin-help",
@@ -56,7 +58,8 @@
     ]
   },
   "scripts": {
-    "start": "rm tsconfig.tsbuildinfo && npm run build && ./bin/run generate",
+    "watch": "nodemon",
+    "start": "rm -f tsconfig.tsbuildinfo && npm run build && ./bin/run generate",
     "build": "shx rm -rf dist && tsc -b",
     "check:lint": "eslint . --ext .ts --config .eslintrc",
     "check:format": "prettier --check 'src/*.{ts,js}'",
@@ -73,7 +76,7 @@
     "semi": false,
     "singleQuote": true
   },
-  "bugs": "https://github.com/nicnocquee/hello-world/issues",
+  "bugs": "https://github.com/hyperjumptech/swagger-to-js-validator/issues",
   "keywords": [
     "oclif"
   ],
@@ -83,5 +86,15 @@
     ],
     "*.{ts,js,css,md}": "prettier --write"
   },
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "nodemonConfig": {
+    "exec": "npm run start -- ./examples/swagger/pet-store.yaml ./tmp/swagger.ts",
+    "watch": [
+      "src/*",
+      "examples/*",
+      "templates/*"
+    ],
+    "ext": "*",
+    "delay": 2500
+  }
 }
