@@ -1,98 +1,208 @@
-# oclif-hello-world
+# stjv (swagger-to-js-validator)
 
-oclif example Hello World CLI
+This CLI generates request validators based on [OpenAPI 3 schema](https://swagger.io/docs/specification/about/) (previously called Swagger).
 
-[![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
-[![Version](https://img.shields.io/npm/v/oclif-hello-world.svg)](https://npmjs.org/package/oclif-hello-world)
-[![CircleCI](https://circleci.com/gh/oclif/hello-world/tree/main.svg?style=shield)](https://circleci.com/gh/oclif/hello-world/tree/main)
-[![Downloads/week](https://img.shields.io/npm/dw/oclif-hello-world.svg)](https://npmjs.org/package/oclif-hello-world)
-[![License](https://img.shields.io/npm/l/oclif-hello-world.svg)](https://github.com/oclif/hello-world/blob/main/package.json)
+**:construction: WARNING: This package is WIP**
 
-<!-- toc -->
+|     | Features                                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------- |
+| ✅  | Generate TypeScript functions                                                                                          |
+| ✅  | Validate the incoming request's HTTP method                                                                            |
+| ✅  | Validate the incoming request's body if any                                                                            |
+| ✅  | Generate various validators. Supported validator as of now: [Yup](https://github.com/jquense/yup)                      |
+| ✅  | Generate validator functions for various web frameworks. Supported framework as of now: [Next.js](https://nextjs.org/) |
 
-- [Usage](#usage)
-- [Commands](#commands)
-<!-- tocstop -->
-
-# Usage
-
-<!-- usage -->
+## Installation
 
 ```sh-session
-$ npm install -g oclif-hello-world
-$ oex COMMAND
-running command...
-$ oex (--version)
-oclif-hello-world/0.0.0 darwin-x64 node-v16.13.1
-$ oex --help [COMMAND]
-USAGE
-  $ oex COMMAND
-...
+npm install @hyperjumptech/sjtv
 ```
 
-<!-- usagestop -->
+## Usage
 
-# Commands
+First add a script in the package.json to run `stjv` with two arguments: the path to Open API 3 file and the path to the TypeScript file.
+
+```json
+"scripts": {
+  "generate:ts-validator": "stjv generate <path_to_open_api_3_yaml> <output_path_to_write_ts_file>"
+}
+```
+
+Next, run the script
+
+```sh-session
+npm run generate:ts-validator
+```
+
+The command above will generate the TypeScript file which contains the functions to validate the incoming requests. Thus, the `output_path_to_write_ts_file` should be inside your project's directory.
+
+### Next.js API
+
+After runnning the command above, you can use the generated TypeScript file in the API end points of Next.js. The generated function's names are based on the `paths` you defined in the Open API 3 YAML file. For example, say you have the following `paths` in the YAML file:
+
+```yaml
+paths:
+  /pet:
+    put:
+      tags:
+        - pet
+      summary: Update an existing pet
+      operationId: updatePet
+      requestBody:
+        description: Pet object that needs to be added to the store
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/Pet'
+        required: true
+      responses:
+        400:
+          description: Invalid ID supplied
+          content: {}
+        404:
+          description: Pet not found
+          content: {}
+        405:
+          description: Validation exception
+          content: {}
+      security:
+        - petstore_auth:
+            - write:pets
+            - read:pets
+      x-codegen-request-body-name: body
+    post:
+      tags:
+        - pet
+      summary: Add a new pet to the store
+      operationId: addPet
+      requestBody:
+        description: Pet object that needs to be added to the store
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pet'
+          application/xml:
+            schema:
+              $ref: '#/components/schemas/Pet'
+        required: true
+      responses:
+        405:
+          description: Invalid input
+          content: {}
+      security:
+        - petstore_auth:
+            - write:pets
+            - read:pets
+      x-codegen-request-body-name: body
+components:
+  schemas:
+    Pet:
+      required:
+        - name
+        - photoUrls
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        category:
+          $ref: '#/components/schemas/Category'
+        name:
+          type: string
+          example: doggie
+        photoUrls:
+          type: array
+          xml:
+            name: photoUrl
+            wrapped: true
+          items:
+            type: string
+        tags:
+          type: array
+          xml:
+            name: tag
+            wrapped: true
+          items:
+            $ref: '#/components/schemas/Tag'
+        status:
+          type: string
+          description: pet status in the store
+          enum:
+            - available
+            - pending
+            - sold
+      xml:
+        name: Pet
+```
+
+`stjv` will generate a function called `validatePetRequest` which you can use in the handler of `/api/pet` end point.
+
+```typescript
+import { validatePetRequest } from '<output_path_to_write_ts_file>'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const validated = await validatePetRequest(req)
+
+  const validated = await validateMonikaServerBatchRequest(req)
+  if (validated.error) {
+    return res.status(validated.error.status).send(validated.error.message)
+  }
+
+  const validatedBody = await validated.schema.validate(req.body)
+
+  // the validatedBody's type will be based on the Pet schema
+  const { name } = validatedBody
+}
+```
+
+## Commands
 
 <!-- commands -->
 
-- [`oex hello PERSON`](#oex-hello-person)
-- [`oex hello world`](#oex-hello-world)
-- [`oex help [COMMAND]`](#oex-help-command)
-- [`oex plugins`](#oex-plugins)
-- [`oex plugins:inspect PLUGIN...`](#oex-pluginsinspect-plugin)
-- [`oex plugins:install PLUGIN...`](#oex-pluginsinstall-plugin)
-- [`oex plugins:link PLUGIN`](#oex-pluginslink-plugin)
-- [`oex plugins:uninstall PLUGIN...`](#oex-pluginsuninstall-plugin)
-- [`oex plugins update`](#oex-plugins-update)
+- [`stjv generate SWAGGERPATH [TYPESCRIPTOUTPUT]`](#stjv-generate-swaggerpath-typescriptoutput)
+- [`stjv help [COMMAND]`](#stjv-help-command)
 
-## `oex hello PERSON`
+## `stjv generate SWAGGERPATH [TYPESCRIPTOUTPUT]`
 
-Say hello
+describe the command here
 
 ```
 USAGE
-  $ oex hello [PERSON] -f <value>
+  $ stjv generate [SWAGGERPATH] [TYPESCRIPTOUTPUT] [--validator yup] [--framework next]
 
 ARGUMENTS
-  PERSON  Person to say hello to
+  SWAGGERPATH       path to swagger file
+  TYPESCRIPTOUTPUT  path
+                    to TypeScript output file
 
 FLAGS
-  -f, --from=<value>  (required) Whom is saying hello
+  --framework=<option>  [default: next] Framework target
+                        <options: next>
+  --validator=<option>  [default: yup] Validator to use
+                        <options: yup>
 
 DESCRIPTION
-  Say hello
+  describe the command here
 
 EXAMPLES
-  $ oex hello friend --from oclif
-  hello friend from oclif! (./src/commands/hello/index.ts)
+  $ stjv generate
 ```
 
-_See code: [dist/commands/hello/index.ts](https://github.com/oclif/hello-world/blob/v0.0.0/dist/commands/hello/index.ts)_
+_See code: [dist/commands/generate.ts](https://github.com/hyperjumptech/swagger-to-js-validator/blob/v0.0.0/dist/commands/generate.ts)_
 
-## `oex hello world`
+## `stjv help [COMMAND]`
 
-Say hello world
+Display help for stjv.
 
 ```
 USAGE
-  $ oex hello world
-
-DESCRIPTION
-  Say hello world
-
-EXAMPLES
-  $ oex hello world
-  hello world! (./src/commands/hello/world.ts)
-```
-
-## `oex help [COMMAND]`
-
-Display help for oex.
-
-```
-USAGE
-  $ oex help [COMMAND] [-n]
+  $ stjv help [COMMAND] [-n]
 
 ARGUMENTS
   COMMAND  Command to show help for.
@@ -101,18 +211,18 @@ FLAGS
   -n, --nested-commands  Include all nested commands in the output.
 
 DESCRIPTION
-  Display help for oex.
+  Display help for stjv.
 ```
 
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v5.1.10/src/commands/help.ts)_
+_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v5.1.12/src/commands/help.ts)_
 
-## `oex plugins`
+## `stjv plugins`
 
 List installed plugins.
 
 ```
 USAGE
-  $ oex plugins [--core]
+  $ stjv plugins [--core]
 
 FLAGS
   --core  Show core plugins.
@@ -121,135 +231,13 @@ DESCRIPTION
   List installed plugins.
 
 EXAMPLES
-  $ oex plugins
+  $ stjv plugins
 ```
 
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v2.0.11/src/commands/plugins/index.ts)_
-
-## `oex plugins:inspect PLUGIN...`
-
-Displays installation properties of a plugin.
-
-```
-USAGE
-  $ oex plugins:inspect PLUGIN...
-
-ARGUMENTS
-  PLUGIN  [default: .] Plugin to inspect.
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Displays installation properties of a plugin.
-
-EXAMPLES
-  $ oex plugins:inspect myplugin
-```
-
-## `oex plugins:install PLUGIN...`
-
-Installs a plugin into the CLI.
-
-```
-USAGE
-  $ oex plugins:install PLUGIN...
-
-ARGUMENTS
-  PLUGIN  Plugin to install.
-
-FLAGS
-  -f, --force    Run yarn install with force flag.
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Installs a plugin into the CLI.
-
-  Can be installed from npm or a git url.
-
-  Installation of a user-installed plugin will override a core plugin.
-
-  e.g. If you have a core plugin that has a 'hello' command, installing a user-installed plugin with a 'hello' command
-  will override the core plugin implementation. This is useful if a user needs to update core plugin functionality in
-  the CLI without the need to patch and update the whole CLI.
-
-ALIASES
-  $ oex plugins add
-
-EXAMPLES
-  $ oex plugins:install myplugin
-
-  $ oex plugins:install https://github.com/someuser/someplugin
-
-  $ oex plugins:install someuser/someplugin
-```
-
-## `oex plugins:link PLUGIN`
-
-Links a plugin into the CLI for development.
-
-```
-USAGE
-  $ oex plugins:link PLUGIN
-
-ARGUMENTS
-  PATH  [default: .] path to plugin
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Links a plugin into the CLI for development.
-
-  Installation of a linked plugin will override a user-installed or core plugin.
-
-  e.g. If you have a user-installed or core plugin that has a 'hello' command, installing a linked plugin with a 'hello'
-  command will override the user-installed or core plugin implementation. This is useful for development work.
-
-EXAMPLES
-  $ oex plugins:link myplugin
-```
-
-## `oex plugins:uninstall PLUGIN...`
-
-Removes a plugin from the CLI.
-
-```
-USAGE
-  $ oex plugins:uninstall PLUGIN...
-
-ARGUMENTS
-  PLUGIN  plugin to uninstall
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Removes a plugin from the CLI.
-
-ALIASES
-  $ oex plugins unlink
-  $ oex plugins remove
-```
-
-## `oex plugins update`
-
-Update installed plugins.
-
-```
-USAGE
-  $ oex plugins update [-h] [-v]
-
-FLAGS
-  -h, --help     Show CLI help.
-  -v, --verbose
-
-DESCRIPTION
-  Update installed plugins.
-```
+_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v2.1.0/src/commands/plugins/index.ts)_
 
 <!-- commandsstop -->
+
+## License
+
+MIT

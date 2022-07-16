@@ -1,6 +1,7 @@
 {
   "extends": ["oclif", "oclif-typescript", "prettier"],
   "rules": {
+    "max-depth": "off",
     "no-warning-comments": "off",
     "no-process-exit": "off",
     "no-use-before-define": ["warn", "nofunc"],
