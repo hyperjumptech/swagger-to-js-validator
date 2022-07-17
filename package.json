@@ -20,7 +20,7 @@
   "dependencies": {
     "@oclif/core": "^1",
     "@oclif/plugin-help": "^5",
-    "@oclif/plugin-plugins": "^2.0.1",
+    "@oclif/plugin-plugins": "^2.1.0",
     "@octokit/core": "^4.0.4",
     "handlebars": "^4.7.7",
     "js-yaml": "^4.1.0",
