@@ -1,3 +1,4 @@
+/* eslint-disable no-use-before-define */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 export const yupTypeFromSwaggerType = (swaggerType: string): string => {
   if (['integer', 'number'].includes(swaggerType)) {
@@ -21,11 +22,18 @@ export const yupArrayValidatorString = (
   schemaName: string,
   schemas: Record<string, unknown>
 ) => {
-  return `Yup.array().of(${yupSchemaValidatorString(schemaName, schemas)})`
+  return `Yup.array().of(${yupSchemaValidatorString(
+    schemaName,
+    schemas
+  )}.required())`
+}
+
+export const yupEmptyObjectValidatorString = () => {
+  return `Yup.object({}).noUnknown()`
 }
 
 export const yupArrayNotRefValidatorString = (type: string) => {
-  return `Yup.array().of(Yup.${yupTypeFromSwaggerType(type)}())`
+  return `Yup.array().of(Yup.${yupTypeFromSwaggerType(type)}().required())`
 }
 
 export const yupSchemaValidatorString = (
@@ -43,8 +51,7 @@ export const yupObjectValidatorString = (
   requiredProperties: string[],
   schemas: Record<string, unknown>
 ) => {
-  let validatorString = `Yup.object()
-  .shape({`
+  let validatorString = `Yup.object({`
 
   for (const prop of Object.keys(properties)) {
     const propDef = properties[prop] as Record<string, any>
@@ -65,7 +72,7 @@ export const yupObjectValidatorString = (
           validatorString += `${prop}: Yup.array().of(${yupSchemaValidatorString(
             schemaName,
             schemas
-          )})`
+          )}.required())`
         }
       } else if (propDef.items.type) {
         let itemValidator = `Yup.${yupTypeFromSwaggerType(
@@ -75,7 +82,7 @@ export const yupObjectValidatorString = (
           itemValidator += `.required()`
         }
 
-        validatorString += `${prop}: Yup.array().of(${itemValidator})`
+        validatorString += `${prop}: Yup.array().of(${itemValidator}.required())`
       }
     } else {
       validatorString += `${prop}: Yup.${yupTypeFromSwaggerType(

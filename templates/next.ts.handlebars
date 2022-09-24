@@ -4,56 +4,100 @@
 
 import type { NextApiRequest } from 'next';
 import * as Yup from 'yup';
+import createError from "http-errors";
+
+export type ValidationError = {
+  statusCode: number;
+  errors: {
+    path: string;
+    type: string;
+    message: string;
+  }[];
+};
+
+const errorObject = (message: string, code: number = 400) => {
+  return {
+    code,
+    message,
+  };
+};
+
+const generateError = (error: any) => {
+return createError(error.message.code || 400, {
+    errors: error.inner.map((validationErr: any) => {
+    let message = "";
+    if (typeof validationErr.message === "string") {
+        message = validationErr.message;
+    } else if (validationErr.message.hasOwnProperty("message")) {
+        message = validationErr.message.message;
+    }
+    return {
+        path: validationErr.path,
+        type: validationErr.type,
+        message,
+    };
+    }),
+} as { errors: ValidationError["errors"] });
+};
 
 {{#each routes}}
-export const {{this.validatorFunctionName}} = async (req: NextApiRequest) => {
-    // check if the request's method is allowed
-{{#if this.singleMethod}}
-    if (req.method?.toLowerCase() !== "{{ this.singleMethod }}") {
-        return {
-            error: {
-                status: 405,
-                message: 'Method not allowed'
-            },
-            schema: null
-        }
-    }
-{{else}}
-    if (!{{{ this.methods }}}.some(el => el.toLowerCase() === req.method?.toLowerCase())) {
-        return {
-            error: {
-                status: 405,
-                message: 'Method not allowed'
-            },
-            schema: null
-        }
-    }
-{{/if}}
 
-{{#if this.singleValidator}}
-    return {
-        error: null,
-        schema: {{{ this.singleValidator.schemaValidator }}}
-    }
-{{else}}
-{{#if this.validators }}
-    switch (req.method?.toLowerCase()) {
-{{#each this.validators  }}
-        case "{{ this.method }}": {
-            return {
-                error: null,
-                schema: {{{ this.schemaValidator }}}
-            }
-        }
+export type Validated{{this.pathName}}Request = Awaited<
+  ReturnType<typeof validate{{this.pathName}}Request>
+>;
 
+export const validate{{this.pathName}}RequestMethodSchema  = Yup.object({
+  method: Yup.mixed<{{{this.methodOptions}}}>()
+    .oneOf({{{this.methods}}}, () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+{{#each this.validatorMethodSchemas}}
+export const {{this.validatorQuerySchemaName}} = {{this.validatorQuerySchema}}
+export const {{this.validatorBodySchemaName}} = {{this.validatorBodySchema}}
+
+export const {{this.validatorRequestSchemaName}} = Yup.object({
+  method: Yup.mixed<"{{this.validatorMethod}}">().oneOf(["{{this.validatorMethod}}"]).required(),
+  query: {{this.validatorQuerySchemaName}},
+  body: {{this.validatorBodySchemaName}}
+});
 {{/each}}
-    }
 
-{{/if}}
-{{/if}}
 
-}
+export const validate{{this.pathName}}Request = async (req: NextApiRequest) => {
+  const methodSchema = validate{{this.pathName}}RequestMethodSchema;
 
-{{{ this.validatorFunctionResolvedReturnType }}}
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    {{#if this.methodsArray.[1]}}
+        {{#each this.methodsArrayMinusLast}}
+          if (method === "{{this.method}}") {
+            const validated = await validate{{this.pathName}}Request{{this.methodCapitalize}}Schema.validate(req);
+            return validated;
+          }
+        {{/each}}
+       
+    {{else}}
+      {{#each this.methodsArray}}
+        const validated = await validate{{this.pathName}}Request{{this.methodCapitalize}}Schema.validate(req);
+        return validated;
+      {{/each}}
+    
+    {{/if}}
+    {{#if this.lastMethod}}
+       else {
+          const validated = await validate{{this.lastMethod.pathName}}Request{{this.lastMethod.methodCapitalize}}Schema.validate(req);
+          return validated;
+        }
+    {{/if}}
+  } catch (error: any) {
+    throw generateError(error);
+  }
+};
 
 {{/each}}

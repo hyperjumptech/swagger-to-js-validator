@@ -1,6 +1,13 @@
 # stjv (swagger-to-js-validator)
 
+## About
+
 This CLI generates request validators based on [OpenAPI 3 schema](https://swagger.io/docs/specification/about/) (previously called Swagger).
+
+## Motivation
+
+stjv was created to prevent you from writing code to validate the requests coming to API end points one by one. You can instead write an OpenAPI file to define the specifications for all the end points of your app, such as what HTTP methods are accepted, required query properties, and also required properties in the body of the request, then let stjv generate the code to validate the incoming requests. **Not only you'll get a nicely documented API, you'll also get the validation code you can use in your API end points**.
+
 
 **:construction: WARNING: This package is WIP**
 
@@ -141,102 +148,46 @@ components:
 `stjv` will generate a function called `validatePetRequest` which you can use in the handler of `/api/pet` end point.
 
 ```typescript
-import { validatePetRequest } from '<output_path_to_write_ts_file>'
+// pages/api/pet.ts
+import type { NextApiRequest, NextApiResponse } from "next";
+import { ValidatedPetRequest, validatePetRequest } from "../../validation"; // path to the generated TypeScript file
+
+type Response = {
+  data?: {
+    name: string;
+  };
+  error?: any;
+};
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<Response>
 ) {
-  const validated = await validatePetRequest(req)
-
-  const validated = await validateMonikaServerBatchRequest(req)
-  if (validated.error) {
-    return res.status(validated.error.status).send(validated.error.message)
+  let validated: ValidatedPetRequest;
+  try {
+    validated = await validatePetRequest(req);
+  } catch (error: any) {
+    return res.status(error.statusCode ?? 400).json({ error: error.errors });
   }
 
-  const validatedBody = await validated.schema.validate(req.body)
-
-  // the validatedBody's type will be based on the Pet schema
-  const { name } = validatedBody
+  res.status(200).json({ data: { name: validated.body.name } });
 }
 ```
 
-## Commands
+The generated validation function, e.g., `validatePetRequest`, will throw error when the request validation fails when the incoming request in using GET method, or the incoming body doesn't have `name` property, etc.
 
-<!-- commands -->
+The error object will be in the shape of
 
-- [`stjv generate SWAGGERPATH [TYPESCRIPTOUTPUT]`](#stjv-generate-swaggerpath-typescriptoutput)
-- [`stjv help [COMMAND]`](#stjv-help-command)
-
-## `stjv generate SWAGGERPATH [TYPESCRIPTOUTPUT]`
-
-describe the command here
-
+```typescript
+{
+  statusCode: number,
+  errors: {
+    path: string,
+    type: string,
+    message: string
+  }[]
+}
 ```
-USAGE
-  $ stjv generate [SWAGGERPATH] [TYPESCRIPTOUTPUT] [--validator yup] [--framework next]
-
-ARGUMENTS
-  SWAGGERPATH       path to swagger file
-  TYPESCRIPTOUTPUT  path
-                    to TypeScript output file
-
-FLAGS
-  --framework=<option>  [default: next] Framework target
-                        <options: next>
-  --validator=<option>  [default: yup] Validator to use
-                        <options: yup>
-
-DESCRIPTION
-  describe the command here
-
-EXAMPLES
-  $ stjv generate
-```
-
-_See code: [dist/commands/generate.ts](https://github.com/hyperjumptech/swagger-to-js-validator/blob/v0.0.0/dist/commands/generate.ts)_
-
-## `stjv help [COMMAND]`
-
-Display help for stjv.
-
-```
-USAGE
-  $ stjv help [COMMAND] [-n]
-
-ARGUMENTS
-  COMMAND  Command to show help for.
-
-FLAGS
-  -n, --nested-commands  Include all nested commands in the output.
-
-DESCRIPTION
-  Display help for stjv.
-```
-
-_See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v5.1.12/src/commands/help.ts)_
-
-## `stjv plugins`
-
-List installed plugins.
-
-```
-USAGE
-  $ stjv plugins [--core]
-
-FLAGS
-  --core  Show core plugins.
-
-DESCRIPTION
-  List installed plugins.
-
-EXAMPLES
-  $ stjv plugins
-```
-
-_See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v2.1.0/src/commands/plugins/index.ts)_
-
-<!-- commandsstop -->
 
 ## License
 

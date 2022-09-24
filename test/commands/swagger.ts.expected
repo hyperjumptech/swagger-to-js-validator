@@ -4,435 +4,764 @@
 
 import type { NextApiRequest } from "next";
 import * as Yup from "yup";
+import createError from "http-errors";
+
+export type ValidationError = {
+  statusCode: number;
+  errors: {
+    path: string;
+    type: string;
+    message: string;
+  }[];
+};
+
+const errorObject = (message: string, code: number = 400) => {
+  return {
+    code,
+    message,
+  };
+};
+
+const generateError = (error: any) => {
+  return createError(error.message.code || 400, {
+    errors: error.inner.map((validationErr: any) => {
+      let message = "";
+      if (typeof validationErr.message === "string") {
+        message = validationErr.message;
+      } else if (validationErr.message.hasOwnProperty("message")) {
+        message = validationErr.message.message;
+      }
+      return {
+        path: validationErr.path,
+        type: validationErr.type,
+        message,
+      };
+    }),
+  } as { errors: ValidationError["errors"] });
+};
+
+export type ValidatedPetRequest = Awaited<
+  ReturnType<typeof validatePetRequest>
+>;
+
+export const validatePetRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"PUT" | "POST">()
+    .oneOf(["PUT", "POST"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validatePetRequestQueryPutSchema = Yup.object({}).noUnknown();
+export const validatePetRequestBodyPutSchema = Yup.object({
+  id: Yup.number(),
+  category: Yup.object({ id: Yup.number(), name: Yup.string() }).noUnknown(),
+  name: Yup.string().required(),
+  photoUrls: Yup.array().of(Yup.string().required()).required(),
+  tags: Yup.array().of(
+    Yup.object({ id: Yup.number(), name: Yup.string() }).noUnknown().required()
+  ),
+  status: Yup.string().label("pet status in the store"),
+}).noUnknown();
+
+export const validatePetRequestPutSchema = Yup.object({
+  method: Yup.mixed<"PUT">().oneOf(["PUT"]).required(),
+  query: validatePetRequestQueryPutSchema,
+  body: validatePetRequestBodyPutSchema,
+});
+export const validatePetRequestQueryPostSchema = Yup.object({}).noUnknown();
+export const validatePetRequestBodyPostSchema = Yup.object({
+  id: Yup.number(),
+  category: Yup.object({ id: Yup.number(), name: Yup.string() }).noUnknown(),
+  name: Yup.string().required(),
+  photoUrls: Yup.array().of(Yup.string().required()).required(),
+  tags: Yup.array().of(
+    Yup.object({ id: Yup.number(), name: Yup.string() }).noUnknown().required()
+  ),
+  status: Yup.string().label("pet status in the store"),
+}).noUnknown();
+
+export const validatePetRequestPostSchema = Yup.object({
+  method: Yup.mixed<"POST">().oneOf(["POST"]).required(),
+  query: validatePetRequestQueryPostSchema,
+  body: validatePetRequestBodyPostSchema,
+});
 
 export const validatePetRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (
-    !["put", "post"].some(
-      (el) => el.toLowerCase() === req.method?.toLowerCase()
-    )
-  ) {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validatePetRequestMethodSchema;
 
-  switch (req.method?.toLowerCase()) {
-    case "put": {
-      return {
-        error: null,
-        schema: Yup.object()
-          .shape({
-            id: Yup.number(),
-            category: Yup.object()
-              .shape({ id: Yup.number(), name: Yup.string() })
-              .noUnknown(),
-            name: Yup.string().required(),
-            photoUrls: Yup.array().of(Yup.string()).required(),
-            tags: Yup.array().of(
-              Yup.object()
-                .shape({ id: Yup.number(), name: Yup.string() })
-                .noUnknown()
-            ),
-            status: Yup.string().label("pet status in the store"),
-          })
-          .noUnknown(),
-      };
-    }
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
 
-    case "post": {
-      return {
-        error: null,
-        schema: Yup.object()
-          .shape({
-            id: Yup.number(),
-            category: Yup.object()
-              .shape({ id: Yup.number(), name: Yup.string() })
-              .noUnknown(),
-            name: Yup.string().required(),
-            photoUrls: Yup.array().of(Yup.string()).required(),
-            tags: Yup.array().of(
-              Yup.object()
-                .shape({ id: Yup.number(), name: Yup.string() })
-                .noUnknown()
-            ),
-            status: Yup.string().label("pet status in the store"),
-          })
-          .noUnknown(),
-      };
+    if (method === "PUT") {
+      const validated = await validatePetRequestPutSchema.validate(req);
+      return validated;
+    } else {
+      const validated = await validatePetRequestPostSchema.validate(req);
+      return validated;
     }
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidatePetRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validatePetRequest>>["schema"],
-  null | undefined
+export type ValidatedPetFindByStatusRequest = Awaited<
+  ReturnType<typeof validatePetFindByStatusRequest>
 >;
+
+export const validatePetFindByStatusRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET">()
+    .oneOf(["GET"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validatePetFindByStatusRequestQueryGetSchema = Yup.object(
+  {}
+).noUnknown();
+export const validatePetFindByStatusRequestBodyGetSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validatePetFindByStatusRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validatePetFindByStatusRequestQueryGetSchema,
+  body: validatePetFindByStatusRequestBodyGetSchema,
+});
 
 export const validatePetFindByStatusRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "get") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
+  const methodSchema = validatePetFindByStatusRequestMethodSchema;
+
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated = await validatePetFindByStatusRequestGetSchema.validate(
+      req
+    );
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidatePetFindByStatusRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validatePetFindByStatusRequest>>["schema"],
-  null | undefined
+export type ValidatedPetFindByTagsRequest = Awaited<
+  ReturnType<typeof validatePetFindByTagsRequest>
 >;
+
+export const validatePetFindByTagsRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET">()
+    .oneOf(["GET"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validatePetFindByTagsRequestQueryGetSchema = Yup.object(
+  {}
+).noUnknown();
+export const validatePetFindByTagsRequestBodyGetSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validatePetFindByTagsRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validatePetFindByTagsRequestQueryGetSchema,
+  body: validatePetFindByTagsRequestBodyGetSchema,
+});
 
 export const validatePetFindByTagsRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "get") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
+  const methodSchema = validatePetFindByTagsRequestMethodSchema;
+
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated = await validatePetFindByTagsRequestGetSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidatePetFindByTagsRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validatePetFindByTagsRequest>>["schema"],
-  null | undefined
+export type ValidatedPetPetIdRequest = Awaited<
+  ReturnType<typeof validatePetPetIdRequest>
 >;
+
+export const validatePetPetIdRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET" | "POST" | "DELETE">()
+    .oneOf(["GET", "POST", "DELETE"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validatePetPetIdRequestQueryGetSchema = Yup.object({}).noUnknown();
+export const validatePetPetIdRequestBodyGetSchema = Yup.object({}).noUnknown();
+
+export const validatePetPetIdRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validatePetPetIdRequestQueryGetSchema,
+  body: validatePetPetIdRequestBodyGetSchema,
+});
+export const validatePetPetIdRequestQueryPostSchema = Yup.object(
+  {}
+).noUnknown();
+export const validatePetPetIdRequestBodyPostSchema = Yup.object({
+  name: Yup.string().label("Updated name of the pet"),
+  status: Yup.string().label("Updated status of the pet"),
+}).noUnknown();
+
+export const validatePetPetIdRequestPostSchema = Yup.object({
+  method: Yup.mixed<"POST">().oneOf(["POST"]).required(),
+  query: validatePetPetIdRequestQueryPostSchema,
+  body: validatePetPetIdRequestBodyPostSchema,
+});
+export const validatePetPetIdRequestQueryDeleteSchema = Yup.object(
+  {}
+).noUnknown();
+export const validatePetPetIdRequestBodyDeleteSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validatePetPetIdRequestDeleteSchema = Yup.object({
+  method: Yup.mixed<"DELETE">().oneOf(["DELETE"]).required(),
+  query: validatePetPetIdRequestQueryDeleteSchema,
+  body: validatePetPetIdRequestBodyDeleteSchema,
+});
 
 export const validatePetPetIdRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (
-    !["get", "post", "delete"].some(
-      (el) => el.toLowerCase() === req.method?.toLowerCase()
-    )
-  ) {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validatePetPetIdRequestMethodSchema;
 
-  switch (req.method?.toLowerCase()) {
-    case "post": {
-      return {
-        error: null,
-        schema: Yup.object()
-          .shape({
-            name: Yup.string().label("Updated name of the pet"),
-            status: Yup.string().label("Updated status of the pet"),
-          })
-          .noUnknown(),
-      };
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    if (method === "GET") {
+      const validated = await validatePetPetIdRequestGetSchema.validate(req);
+      return validated;
     }
+    if (method === "POST") {
+      const validated = await validatePetPetIdRequestPostSchema.validate(req);
+      return validated;
+    } else {
+      const validated = await validatePetPetIdRequestDeleteSchema.validate(req);
+      return validated;
+    }
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidatePetPetIdRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validatePetPetIdRequest>>["schema"],
-  null | undefined
+export type ValidatedPetPetIdUploadImageRequest = Awaited<
+  ReturnType<typeof validatePetPetIdUploadImageRequest>
 >;
+
+export const validatePetPetIdUploadImageRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"POST">()
+    .oneOf(["POST"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validatePetPetIdUploadImageRequestQueryPostSchema = Yup.object(
+  {}
+).noUnknown();
+export const validatePetPetIdUploadImageRequestBodyPostSchema = Yup.object({
+  additionalMetadata: Yup.string().label("Additional data to pass to server"),
+  file: Yup.string().label("file to upload"),
+}).noUnknown();
+
+export const validatePetPetIdUploadImageRequestPostSchema = Yup.object({
+  method: Yup.mixed<"POST">().oneOf(["POST"]).required(),
+  query: validatePetPetIdUploadImageRequestQueryPostSchema,
+  body: validatePetPetIdUploadImageRequestBodyPostSchema,
+});
 
 export const validatePetPetIdUploadImageRequest = async (
   req: NextApiRequest
 ) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "post") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validatePetPetIdUploadImageRequestMethodSchema;
 
-  return {
-    error: null,
-    schema: Yup.object()
-      .shape({
-        additionalMetadata: Yup.string().label(
-          "Additional data to pass to server"
-        ),
-        file: Yup.string().label("file to upload"),
-      })
-      .noUnknown(),
-  };
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated =
+      await validatePetPetIdUploadImageRequestPostSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
+  }
 };
 
-export type ValidatePetPetIdUploadImageRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validatePetPetIdUploadImageRequest>>["schema"],
-  null | undefined
+export type ValidatedStoreInventoryRequest = Awaited<
+  ReturnType<typeof validateStoreInventoryRequest>
 >;
+
+export const validateStoreInventoryRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET">()
+    .oneOf(["GET"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateStoreInventoryRequestQueryGetSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateStoreInventoryRequestBodyGetSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validateStoreInventoryRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validateStoreInventoryRequestQueryGetSchema,
+  body: validateStoreInventoryRequestBodyGetSchema,
+});
 
 export const validateStoreInventoryRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "get") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
+  const methodSchema = validateStoreInventoryRequestMethodSchema;
+
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated = await validateStoreInventoryRequestGetSchema.validate(
+      req
+    );
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidateStoreInventoryRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateStoreInventoryRequest>>["schema"],
-  null | undefined
+export type ValidatedStoreOrderRequest = Awaited<
+  ReturnType<typeof validateStoreOrderRequest>
 >;
+
+export const validateStoreOrderRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"POST">()
+    .oneOf(["POST"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateStoreOrderRequestQueryPostSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateStoreOrderRequestBodyPostSchema = Yup.object({
+  id: Yup.number(),
+  petId: Yup.number(),
+  quantity: Yup.number(),
+  shipDate: Yup.string(),
+  status: Yup.string().label("Order Status"),
+  complete: Yup.boolean().default(false),
+}).noUnknown();
+
+export const validateStoreOrderRequestPostSchema = Yup.object({
+  method: Yup.mixed<"POST">().oneOf(["POST"]).required(),
+  query: validateStoreOrderRequestQueryPostSchema,
+  body: validateStoreOrderRequestBodyPostSchema,
+});
 
 export const validateStoreOrderRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "post") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validateStoreOrderRequestMethodSchema;
 
-  return {
-    error: null,
-    schema: Yup.object()
-      .shape({
-        id: Yup.number(),
-        petId: Yup.number(),
-        quantity: Yup.number(),
-        shipDate: Yup.string(),
-        status: Yup.string().label("Order Status"),
-        complete: Yup.boolean().default(false),
-      })
-      .noUnknown(),
-  };
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated = await validateStoreOrderRequestPostSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
+  }
 };
 
-export type ValidateStoreOrderRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateStoreOrderRequest>>["schema"],
-  null | undefined
+export type ValidatedStoreOrderOrderIdRequest = Awaited<
+  ReturnType<typeof validateStoreOrderOrderIdRequest>
 >;
+
+export const validateStoreOrderOrderIdRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET" | "DELETE">()
+    .oneOf(["GET", "DELETE"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateStoreOrderOrderIdRequestQueryGetSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateStoreOrderOrderIdRequestBodyGetSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validateStoreOrderOrderIdRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validateStoreOrderOrderIdRequestQueryGetSchema,
+  body: validateStoreOrderOrderIdRequestBodyGetSchema,
+});
+export const validateStoreOrderOrderIdRequestQueryDeleteSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateStoreOrderOrderIdRequestBodyDeleteSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validateStoreOrderOrderIdRequestDeleteSchema = Yup.object({
+  method: Yup.mixed<"DELETE">().oneOf(["DELETE"]).required(),
+  query: validateStoreOrderOrderIdRequestQueryDeleteSchema,
+  body: validateStoreOrderOrderIdRequestBodyDeleteSchema,
+});
 
 export const validateStoreOrderOrderIdRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (
-    !["get", "delete"].some(
-      (el) => el.toLowerCase() === req.method?.toLowerCase()
-    )
-  ) {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
+  const methodSchema = validateStoreOrderOrderIdRequestMethodSchema;
+
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    if (method === "GET") {
+      const validated =
+        await validateStoreOrderOrderIdRequestGetSchema.validate(req);
+      return validated;
+    } else {
+      const validated =
+        await validateStoreOrderOrderIdRequestDeleteSchema.validate(req);
+      return validated;
+    }
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidateStoreOrderOrderIdRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateStoreOrderOrderIdRequest>>["schema"],
-  null | undefined
+export type ValidatedUserRequest = Awaited<
+  ReturnType<typeof validateUserRequest>
 >;
+
+export const validateUserRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"POST">()
+    .oneOf(["POST"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateUserRequestQueryPostSchema = Yup.object({}).noUnknown();
+export const validateUserRequestBodyPostSchema = Yup.object({
+  id: Yup.number(),
+  username: Yup.string(),
+  firstName: Yup.string(),
+  lastName: Yup.string(),
+  email: Yup.string(),
+  password: Yup.string(),
+  phone: Yup.string(),
+  userStatus: Yup.number().label("User Status"),
+}).noUnknown();
+
+export const validateUserRequestPostSchema = Yup.object({
+  method: Yup.mixed<"POST">().oneOf(["POST"]).required(),
+  query: validateUserRequestQueryPostSchema,
+  body: validateUserRequestBodyPostSchema,
+});
 
 export const validateUserRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "post") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validateUserRequestMethodSchema;
 
-  return {
-    error: null,
-    schema: Yup.object()
-      .shape({
-        id: Yup.number(),
-        username: Yup.string(),
-        firstName: Yup.string(),
-        lastName: Yup.string(),
-        email: Yup.string(),
-        password: Yup.string(),
-        phone: Yup.string(),
-        userStatus: Yup.number().label("User Status"),
-      })
-      .noUnknown(),
-  };
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated = await validateUserRequestPostSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
+  }
 };
 
-export type ValidateUserRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateUserRequest>>["schema"],
-  null | undefined
+export type ValidatedUserCreateWithArrayRequest = Awaited<
+  ReturnType<typeof validateUserCreateWithArrayRequest>
 >;
+
+export const validateUserCreateWithArrayRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"POST">()
+    .oneOf(["POST"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateUserCreateWithArrayRequestQueryPostSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateUserCreateWithArrayRequestBodyPostSchema = Yup.array().of(
+  Yup.object({
+    id: Yup.number(),
+    username: Yup.string(),
+    firstName: Yup.string(),
+    lastName: Yup.string(),
+    email: Yup.string(),
+    password: Yup.string(),
+    phone: Yup.string(),
+    userStatus: Yup.number().label("User Status"),
+  })
+    .noUnknown()
+    .required()
+);
+
+export const validateUserCreateWithArrayRequestPostSchema = Yup.object({
+  method: Yup.mixed<"POST">().oneOf(["POST"]).required(),
+  query: validateUserCreateWithArrayRequestQueryPostSchema,
+  body: validateUserCreateWithArrayRequestBodyPostSchema,
+});
 
 export const validateUserCreateWithArrayRequest = async (
   req: NextApiRequest
 ) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "post") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validateUserCreateWithArrayRequestMethodSchema;
 
-  return {
-    error: null,
-    schema: Yup.array().of(
-      Yup.object()
-        .shape({
-          id: Yup.number(),
-          username: Yup.string(),
-          firstName: Yup.string(),
-          lastName: Yup.string(),
-          email: Yup.string(),
-          password: Yup.string(),
-          phone: Yup.string(),
-          userStatus: Yup.number().label("User Status"),
-        })
-        .noUnknown()
-    ),
-  };
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated =
+      await validateUserCreateWithArrayRequestPostSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
+  }
 };
 
-export type ValidateUserCreateWithArrayRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateUserCreateWithArrayRequest>>["schema"],
-  null | undefined
+export type ValidatedUserCreateWithListRequest = Awaited<
+  ReturnType<typeof validateUserCreateWithListRequest>
 >;
+
+export const validateUserCreateWithListRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"POST">()
+    .oneOf(["POST"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateUserCreateWithListRequestQueryPostSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateUserCreateWithListRequestBodyPostSchema = Yup.array().of(
+  Yup.object({
+    id: Yup.number(),
+    username: Yup.string(),
+    firstName: Yup.string(),
+    lastName: Yup.string(),
+    email: Yup.string(),
+    password: Yup.string(),
+    phone: Yup.string(),
+    userStatus: Yup.number().label("User Status"),
+  })
+    .noUnknown()
+    .required()
+);
+
+export const validateUserCreateWithListRequestPostSchema = Yup.object({
+  method: Yup.mixed<"POST">().oneOf(["POST"]).required(),
+  query: validateUserCreateWithListRequestQueryPostSchema,
+  body: validateUserCreateWithListRequestBodyPostSchema,
+});
 
 export const validateUserCreateWithListRequest = async (
   req: NextApiRequest
 ) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "post") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validateUserCreateWithListRequestMethodSchema;
 
-  return {
-    error: null,
-    schema: Yup.array().of(
-      Yup.object()
-        .shape({
-          id: Yup.number(),
-          username: Yup.string(),
-          firstName: Yup.string(),
-          lastName: Yup.string(),
-          email: Yup.string(),
-          password: Yup.string(),
-          phone: Yup.string(),
-          userStatus: Yup.number().label("User Status"),
-        })
-        .noUnknown()
-    ),
-  };
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated =
+      await validateUserCreateWithListRequestPostSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
+  }
 };
 
-export type ValidateUserCreateWithListRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateUserCreateWithListRequest>>["schema"],
-  null | undefined
+export type ValidatedUserLoginRequest = Awaited<
+  ReturnType<typeof validateUserLoginRequest>
 >;
+
+export const validateUserLoginRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET">()
+    .oneOf(["GET"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateUserLoginRequestQueryGetSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateUserLoginRequestBodyGetSchema = Yup.object({}).noUnknown();
+
+export const validateUserLoginRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validateUserLoginRequestQueryGetSchema,
+  body: validateUserLoginRequestBodyGetSchema,
+});
 
 export const validateUserLoginRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "get") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
+  const methodSchema = validateUserLoginRequestMethodSchema;
+
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated = await validateUserLoginRequestGetSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidateUserLoginRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateUserLoginRequest>>["schema"],
-  null | undefined
+export type ValidatedUserLogoutRequest = Awaited<
+  ReturnType<typeof validateUserLogoutRequest>
 >;
+
+export const validateUserLogoutRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET">()
+    .oneOf(["GET"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateUserLogoutRequestQueryGetSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateUserLogoutRequestBodyGetSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validateUserLogoutRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validateUserLogoutRequestQueryGetSchema,
+  body: validateUserLogoutRequestBodyGetSchema,
+});
 
 export const validateUserLogoutRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (req.method?.toLowerCase() !== "get") {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
+  const methodSchema = validateUserLogoutRequestMethodSchema;
+
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    const validated = await validateUserLogoutRequestGetSchema.validate(req);
+    return validated;
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
 
-export type ValidateUserLogoutRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateUserLogoutRequest>>["schema"],
-  null | undefined
+export type ValidatedUserUsernameRequest = Awaited<
+  ReturnType<typeof validateUserUsernameRequest>
 >;
+
+export const validateUserUsernameRequestMethodSchema = Yup.object({
+  method: Yup.mixed<"GET" | "PUT" | "DELETE">()
+    .oneOf(["GET", "PUT", "DELETE"], () => {
+      return errorObject("Method not allowed", 405);
+    })
+    .required(),
+});
+
+export const validateUserUsernameRequestQueryGetSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateUserUsernameRequestBodyGetSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validateUserUsernameRequestGetSchema = Yup.object({
+  method: Yup.mixed<"GET">().oneOf(["GET"]).required(),
+  query: validateUserUsernameRequestQueryGetSchema,
+  body: validateUserUsernameRequestBodyGetSchema,
+});
+export const validateUserUsernameRequestQueryPutSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateUserUsernameRequestBodyPutSchema = Yup.object({
+  id: Yup.number(),
+  username: Yup.string(),
+  firstName: Yup.string(),
+  lastName: Yup.string(),
+  email: Yup.string(),
+  password: Yup.string(),
+  phone: Yup.string(),
+  userStatus: Yup.number().label("User Status"),
+}).noUnknown();
+
+export const validateUserUsernameRequestPutSchema = Yup.object({
+  method: Yup.mixed<"PUT">().oneOf(["PUT"]).required(),
+  query: validateUserUsernameRequestQueryPutSchema,
+  body: validateUserUsernameRequestBodyPutSchema,
+});
+export const validateUserUsernameRequestQueryDeleteSchema = Yup.object(
+  {}
+).noUnknown();
+export const validateUserUsernameRequestBodyDeleteSchema = Yup.object(
+  {}
+).noUnknown();
+
+export const validateUserUsernameRequestDeleteSchema = Yup.object({
+  method: Yup.mixed<"DELETE">().oneOf(["DELETE"]).required(),
+  query: validateUserUsernameRequestQueryDeleteSchema,
+  body: validateUserUsernameRequestBodyDeleteSchema,
+});
 
 export const validateUserUsernameRequest = async (req: NextApiRequest) => {
-  // check if the request's method is allowed
-  if (
-    !["get", "put", "delete"].some(
-      (el) => el.toLowerCase() === req.method?.toLowerCase()
-    )
-  ) {
-    return {
-      error: {
-        status: 405,
-        message: "Method not allowed",
-      },
-      schema: null,
-    };
-  }
+  const methodSchema = validateUserUsernameRequestMethodSchema;
 
-  switch (req.method?.toLowerCase()) {
-    case "put": {
-      return {
-        error: null,
-        schema: Yup.object()
-          .shape({
-            id: Yup.number(),
-            username: Yup.string(),
-            firstName: Yup.string(),
-            lastName: Yup.string(),
-            email: Yup.string(),
-            password: Yup.string(),
-            phone: Yup.string(),
-            userStatus: Yup.number().label("User Status"),
-          })
-          .noUnknown(),
-      };
+  try {
+    const { method } = await methodSchema.validate(req, {
+      abortEarly: false,
+    });
+
+    if (method === "GET") {
+      const validated = await validateUserUsernameRequestGetSchema.validate(
+        req
+      );
+      return validated;
     }
+    if (method === "PUT") {
+      const validated = await validateUserUsernameRequestPutSchema.validate(
+        req
+      );
+      return validated;
+    } else {
+      const validated = await validateUserUsernameRequestDeleteSchema.validate(
+        req
+      );
+      return validated;
+    }
+  } catch (error: any) {
+    throw generateError(error);
   }
 };
-
-export type ValidateUserUsernameRequestResolvedType = Exclude<
-  Awaited<ReturnType<typeof validateUserUsernameRequest>>["schema"],
-  null | undefined
->;

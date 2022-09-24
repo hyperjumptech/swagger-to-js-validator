@@ -49,6 +49,14 @@ paths:
               $ref: '#/components/schemas/Pet'
         required: true
       responses:
+        200:
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
         400:
           description: Invalid ID supplied
           content: {}
@@ -707,6 +715,10 @@ components:
             - sold
       xml:
         name: Pet
+    PetEDIT:
+      allOf:
+        - $ref: '#/components/schemas/Pet'
+        - required: [id]
     ApiResponse:
       type: object
       properties:
