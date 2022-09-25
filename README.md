@@ -1,5 +1,7 @@
 # stjv (swagger-to-js-validator)
 
+[![Build & Test](https://github.com/hyperjumptech/swagger-to-js-validator/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/hyperjumptech/swagger-to-js-validator/actions/workflows/main.yml)
+
 ## About
 
 This CLI generates request validators based on [OpenAPI 3 schema](https://swagger.io/docs/specification/about/) (previously called Swagger).
