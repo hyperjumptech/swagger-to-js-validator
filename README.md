@@ -8,11 +8,48 @@ This CLI generates request validators based on [OpenAPI 3 schema](https://swagge
 
 stjv was created to prevent you from writing code to validate the requests coming to API end points one by one. You can instead write an OpenAPI file to define the specifications for all the end points of your app, such as what HTTP methods are accepted, required query properties, and also required properties in the body of the request, then let stjv generate the code to validate the incoming requests. **Not only you'll get a nicely documented API, you'll also get the validation code you can use in your API end points**.
 
+So instead of writing
+
+```typescript
+// pages/api/pet.ts
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Response>
+) {
+  if (req.method === "POST") {
+    if (req.body && req.body.name) {
+      // do something
+    }
+  }
+}
+```
+
+you can write
+
+```typescript
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Response>
+) {
+  let validated: ValidatedPetRequest;
+  try {
+    validated = await validatePetRequest(req);
+  } catch (error: any) {
+    return res.status(error.statusCode ?? 400).json({ error: error.errors });
+  }
+
+  // from here on, the validated will be guaranteed to have method, query, and body. Not optional anymore.
+}
+```
+
 
 **:construction: WARNING: This package is WIP**
 
-|     | Features                                                                                                               |
-| --- | ---------------------------------------------------------------------------------------------------------------------- |
+## Features
+
+|  |  |
+| --- | ----------- |
 | ✅  | Generate TypeScript functions                                                                                          |
 | ✅  | Validate the incoming request's HTTP method                                                                            |
 | ✅  | Validate the incoming request's body if any                                                                            |
